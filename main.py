@@ -4,12 +4,9 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import time
 from datetime import datetime
 import pandas_datareader.data as web
-
-sns.set()
 
 name = 'deep-evolution-strategy'
 company = 'AAPL'
@@ -108,7 +105,6 @@ class Model:
 
 model = Model(window_size, 500, 3)
 
-initial_money = 10000
 starting_money = initial_money
 len_close = len(close) - 1
 weight = model
@@ -117,10 +113,6 @@ skip = 1
 state = get_state(close, 0, window_size + 1)
 inventory = []
 quantity = 0
-
-max_buy = 5
-max_sell = 5
-
 
 def act(model, sequence):
     decision, buy = model.predict(np.array(sequence))
@@ -152,9 +144,6 @@ for t in range(0, len_close, skip):
 
     state = next_state
 ((initial_money - starting_money) / starting_money) * 100
-
-import time
-
 
 class Agent:
 
