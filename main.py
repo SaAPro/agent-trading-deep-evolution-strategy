@@ -13,13 +13,17 @@ company = 'AAPL'
 start = datetime(2019, 6, 10)
 end = datetime.now()
 money = 10000
-max_buy = 5
-max_sell = 5
+max_buy = 100
+max_sell = 100
 window_size = 30
-iteration = 100
+iteration = 200
 checkpoint = 20
+save_weights = True
+load = False
+load_file = ''
 
 df = web.DataReader(company,'yahoo',start=start,end=end)
+close = df.Close.values.tolist()
 
 def get_state(data, t, n):
     d = t - n + 1
@@ -28,8 +32,6 @@ def get_state(data, t, n):
     for i in range(n - 1):
         res.append(block[i + 1] - block[i])
     return np.array([res])
-
-close = df.Close.values.tolist()
 
 class Deep_Evolution_Strategy:
     def __init__(
@@ -84,6 +86,9 @@ class Deep_Evolution_Strategy:
 
 class Model:
     def __init__(self, input_size, layer_size, output_size):
+        self.input_size = input_size
+        self.layer_size = layer_size
+        self.output_size = output_size
         self.weights = [
             np.random.randn(input_size, layer_size),
             np.random.randn(layer_size, output_size),
@@ -103,58 +108,13 @@ class Model:
     def set_weights(self, weights):
         self.weights = weights
 
-model = Model(window_size, 500, 3)
-
-initial_money = money
-starting_money = initial_money
-len_close = len(close) - 1
-weight = model
-skip = 1
-
-state = get_state(close, 0, window_size + 1)
-inventory = []
-quantity = 0
-
-def act(model, sequence):
-    decision, buy = model.predict(np.array(sequence))
-    return np.argmax(decision[0]), int(buy[0])
-
-
-for t in range(0, len_close, skip):
-    action, buy = act(weight, state)
-    next_state = get_state(close, t + 1, window_size + 1)
-    if action == 1 and initial_money >= close[t]:
-        if buy < 0:
-            buy = 1
-        if buy > max_buy:
-            buy_units = max_buy
-        else:
-            buy_units = buy
-        total_buy = buy_units * close[t]
-        initial_money -= total_buy
-        inventory.append(total_buy)
-        quantity += buy_units
-    elif action == 2 and len(inventory) > 0:
-        if quantity > max_sell:
-            sell_units = max_sell
-        else:
-            sell_units = quantity
-        quantity -= sell_units
-        total_sell = sell_units * close[t]
-        initial_money += total_sell
-
-    state = next_state
-((initial_money - starting_money) / starting_money) * 100
-
 class Agent:
 
     POPULATION_SIZE = 15
     SIGMA = 0.1
     LEARNING_RATE = 0.03
 
-    def __init__(
-        self, model, money, max_buy, max_sell, close, window_size, skip
-    ):
+    def __init__(self, model, money, max_buy, max_sell, close, window_size, skip):
         self.window_size = window_size
         self.skip = skip
         self.close = close
@@ -162,6 +122,8 @@ class Agent:
         self.initial_money = money
         self.max_buy = max_buy
         self.max_sell = max_sell
+        self.invest = 0
+        self.save_name = time.strftime("%Y-%m-%d-%H-%M-%S") + '-' + name + '-' + company
         self.es = Deep_Evolution_Strategy(
             self.model.get_weights(),
             self.get_reward,
@@ -169,6 +131,12 @@ class Agent:
             self.SIGMA,
             self.LEARNING_RATE,
         )
+
+    def get_invest(self):
+        return self.invest
+
+    def get_name(self):
+        return self.save_name
 
     def act(self, sequence):
         decision, buy = self.model.predict(np.array(sequence))
@@ -211,6 +179,21 @@ class Agent:
 
     def fit(self, iterations, checkpoint):
         self.es.train(iterations, print_every = checkpoint)
+
+    def save_weights(self, file_path):
+        weights = self.model.get_weights()
+        np.save(file_path + '-weight0', weights[0])
+        np.save(file_path + '-weight1', weights[1])
+        np.save(file_path + '-weight2', weights[2])
+        np.save(file_path + '-weight3', weights[3])
+
+    def load_weights(self, file_path):
+        weights = []
+        weights.append(np.load(file_path + '-weight0.npy'))
+        weights.append(np.load(file_path + '-weight1.npy'))
+        weights.append(np.load(file_path + '-weight2.npy'))
+        weights.append(np.load(file_path + '-weight3.npy'))
+        self.model.set_weights(weights)
 
     def buy(self):
         initial_money = self.initial_money
@@ -255,17 +238,17 @@ class Agent:
                 try:
                     invest = ((total_sell - bought_price) / bought_price) * 100
                 except:
-                    invest = 0
+                    self.invest = 0
                 print(
                     'day %d, sell %d units at price %f, investment %f %%, total balance %f,'
                     % (t, sell_units, total_sell, invest, initial_money)
                 )
             state = next_state
 
-        invest = ((initial_money - starting_money) / starting_money) * 100
+        self.invest = round(((initial_money - starting_money) / starting_money) * 100, 2)
         print(
             '\ntotal gained %f, total investment %f %%'
-            % (initial_money - starting_money, invest)
+            % (initial_money - starting_money, self.invest)
         )
         plt.figure(figsize = (20, 10))
         plt.plot(close, label = 'true close', c = 'g')
@@ -279,11 +262,11 @@ class Agent:
             *** max buy : %i *** max sell : %i *** window_size : %i *** iteration : %i ***'''
             % (name, company,
             start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'),
-            starting_money, round(initial_money - starting_money), round(invest),
+            starting_money, round(initial_money - starting_money), self.invest,
             max_buy, max_sell, window_size, iteration)
             )
         plt.legend()
-        plt.savefig('output/' + time.strftime("%Y-%m-%d-%H-%M-%S") + '-' + name + '-' + company + '.png')
+        plt.savefig('output/' + self.save_name + '-' + str(self.invest) + '.png')
         plt.show()
 
 model = Model(input_size = window_size, layer_size = 500, output_size = 3)
@@ -297,6 +280,12 @@ agent = Agent(
     skip = 1,
 )
 
-agent.fit(iterations = iteration, checkpoint = checkpoint)
+if not load:
+    agent.fit(iterations = iteration, checkpoint = checkpoint)
+else:
+    agent.load_weights('weights/' + load_file)
 
 agent.buy()
+
+if save_weights:
+    agent.save_weights('weights/' + agent.get_name() + '-' + str(agent.get_invest()))
