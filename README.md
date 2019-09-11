@@ -1,7 +1,7 @@
 # Agent trading deep evolution strategy
 
 ## Dependencies
-- Proceed to install with pip install
+Proceed to install with 'pip install' with python3
 - numpy
 - matplotlib
 - pandas
