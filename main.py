@@ -16,7 +16,7 @@ money = 10000
 max_buy = 5
 max_sell = 5
 window_size = 30
-iteration = 500
+iteration = 100
 checkpoint = 20
 
 df = web.DataReader(company,'yahoo',start=start,end=end)
@@ -105,6 +105,7 @@ class Model:
 
 model = Model(window_size, 500, 3)
 
+initial_money = money
 starting_money = initial_money
 len_close = len(close) - 1
 weight = model
@@ -274,11 +275,11 @@ class Agent:
             '''
             *** name : %s *** company : %s ***
             *** start : %s *** end : %s ***
-            *** money : %i *** total gained : %i *** total investment : %i %% ***
+            *** start money : %i *** total gained : %i *** total investment : %i %% ***
             *** max buy : %i *** max sell : %i *** window_size : %i *** iteration : %i ***'''
             % (name, company,
             start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'),
-            money, round(initial_money - starting_money), round(invest),
+            starting_money, round(initial_money - starting_money), round(invest),
             max_buy, max_sell, window_size, iteration)
             )
         plt.legend()
