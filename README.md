@@ -1,4 +1,5 @@
 # Agent trading deep evolution strategy
+This program use a deep evlotution strategy to train a trading agent in order to predict the best time to buy or sell stocks. 
 
 ## Dependencies
 Install the following packages with 'pip install' in python3
